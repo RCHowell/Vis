@@ -1,0 +1,24 @@
+body {
+  background: #444444;
+  transition: 0.5s;
+}
+
+#container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  z-index: 1;
+  overflow: hidden;
+}
+
+#color-button {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 20px;
+  display: block;
+  color: #fff;
+  z-index: 3;
+}
