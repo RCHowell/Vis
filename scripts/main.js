@@ -1,159 +1,131 @@
-// Global Variables
-var FPS = 60;
-var CUTOFF = 140; // Cutoff Level For Changing Colors
-var DATA_LEN = 20; // Number Of Circles To Draw
-var CHANGE_LOC = 5; // Frequency To Watch For Changing Palette
-
+let FPS = 60;
+let CUTOFF = 140;
+let DATA_LEN = 64;
+let CHANGE_LOC = 5;
+let controller;
+let n = navigator;
 $(document).ready(function () {
-  // Relies On Users Having Chrome (for now)
-  if (navigator.webkitGetUserMedia) {
-    navigator.webkitGetUserMedia({audio: true}, function(stream) {
-      // Setup
-      Audio.init(stream);
-      Color.init(Vis);
-      Vis.init();
-      loop();
-    },
-    function(err) {
-      console.log(err.name);
-    });
-  };
+    n.getUserMedia = n.getUserMedia || n.webkitGetUserMedia || n.mozGetUserMedia || n.msGetUserMedia;
+    if (n.getUserMedia) {
+        n.getUserMedia({ audio: true }, function (stream) {
+            let colorController = new ColorController();
+            let vis = new Vis(colorController.colors);
+            controller = new MainController(new AudioController(stream), colorController, vis);
+            loop();
+        }, function (err) {
+            console.log(err.name);
+        });
+    }
+    ;
 });
-
-
-var Audio = {
-  playing: false,
-  analyzer: undefined,
-  microphone: undefined,
-  context: undefined,
-  element: undefined,
-  toggleAudio: function() {
-    (this.playing) ? this.element.pause() : this.element.play();
-    playing = !playing;
-  },
-  init: function(stream) {
-    // Initialize Analyzer With Microphone Stream
-    this.context = new AudioContext();
-    this.analyzer = this.context.createAnalyser();
-    this.microphone = this.context.createMediaStreamSource(stream);
-    this.microphone.connect(this.analyzer);
-  }
+class AudioController {
+    constructor(stream) {
+        this.context = new AudioContext();
+        this.analyzer = this.context.createAnalyser();
+        this.microphone = this.context.createMediaStreamSource(stream);
+        this.microphone.connect(this.analyzer);
+        this.analyzer.fftSize = DATA_LEN;
+    }
 }
-
-var Color = {
-  init: function(vis) {
-    var random = Math.floor(Math.random() * this.palettes.length);
-    this.colors = this.palettes[random];
-    this.connectButton(vis);
-  },
-  colors: undefined,
-  // Five Palettes For Now, But The Code Allows For However Many
-  // Note: Palettes Do Not Have To Be Of Length Five
-  palettes: [
+class MainController {
+    constructor(audio, color, vis) {
+        this.audio = audio;
+        this.color = color;
+        this.vis = vis;
+        this.connectButton();
+    }
+    connectButton() {
+        $('#color-button').click(function () {
+            this.color.change();
+            this.vis.updateColor(this.color.colors);
+        }.bind(this));
+    }
+    update() {
+        this.vis.update(this.audio);
+    }
+    loop() {
+        requestAnimationFrame(this.loop);
+        this.now = Date.now();
+        this.delta = this.now - this.then;
+        if (this.delta > MainController.interval) {
+            this.then = this.now - (this.delta % MainController.interval);
+            this.vis.update(this.audio);
+        }
+    }
+}
+MainController.interval = 1000 / FPS;
+class ColorController {
+    constructor() {
+        this.background = $('body');
+        this.change();
+    }
+    change() {
+        let random = Math.floor(Math.random() * ColorController.palettes.length);
+        this.colors = ColorController.palettes[random];
+        random = Math.floor(Math.random() * this.colors.length);
+        this.background.css("background", this.colors[random]);
+    }
+    randomColor() {
+        return this.colors[Math.floor(Math.random() * this.colors.length)];
+    }
+}
+ColorController.palettes = [
     ["#71A7FE", "#399AE7", "#3B407C", "#547AB1", "#CEAFC0"],
     ["#EFBC9B", "#EE92C2", "#9D6A89", "#725D68", "#A8B4A5"],
     ["#48639C", "#4C4C9D", "#712F79", "#976391", "#F7996E"],
     ["#310A31", "#847996", "#88B7B5", "#A7CAB1", "#F4ECD6"],
     ["#2D728F", "#3B8EA5", "#F5EE9E", "#F49E4C", "#AB3428"]
-  ],
-  background: $('body'), // Jquery Selector For Easy Reference
-  count: 0,
-  shouldChange: true,
-  button: $('#color-button'), // Jquery Selector For Easy Reference
-  connectButton: function(vis) {
-    this.button.click(function() {
-      this.change(vis);
-    }.bind(this)); // Bind Must Be Used So That Change Can Be Called
-  },
-  change: function(vis) {
-    var random = Math.floor(Math.random() * this.palettes.length);
-    this.colors = this.palettes[random];
-    // New Random For Changing Background Color
-    random = Math.floor(Math.random() * this.colors.length);
-    this.background.css("background", this.colors[random]);
-    if (vis) {
-      // Avoid Calling A Method on An Undefined Variable
-      vis.updateColor();
+];
+class Vis {
+    constructor(colors) {
+        this.svg = d3.select(Vis.container)
+            .append('svg')
+            .attr('height', Vis.height)
+            .attr('width', Vis.width);
+        this.frequencyData = new Uint8Array(DATA_LEN);
+        this.circles = new Array(this.frequencyData.length);
+        this.generateCircles(colors);
     }
-  }
+    generateCircles(colors) {
+        for (let i = this.frequencyData.length - 1; i >= 0; i--) {
+            let random = Math.floor(Math.random() * colors.length);
+            this.circles[i] = this.svg.append('circle')
+                .attr('cx', Vis.width / 2)
+                .attr('cy', Vis.height / 2)
+                .attr('r', this.frequencyData[i])
+                .style('fill', colors[random]);
+        }
+    }
+    updateColor(colors) {
+        for (let i = 0; i < this.circles.length; i++) {
+            let random = Math.floor(Math.random() * colors.length);
+            this.circles[i].style("fill", colors[random]);
+        }
+    }
+    update(audio) {
+        audio.analyzer.getByteFrequencyData(this.frequencyData);
+        this.draw();
+    }
+    draw() {
+        for (let i = 0; i < this.circles.length; i++) {
+            this.circles[i].attr('r', ((i / 10) + 1) * this.frequencyData[i]);
+        }
+    }
 }
-
-
-var Vis = {
-  init: function() {
-    this.height = $(this.container).height();
-    this.width = $(this.container).width();
-    // Create A Container SVG For The Circles
-    this.svg = d3.select(this.container).append('svg')
-        .attr('height', this.height)
-        .attr('width', this.width);
-    this.bassData = this.frequencyData.slice(0, DATA_LEN);
-    this.circles = new Array(this.bassData.length);
-    // Initialize Circles
-    for (var i = this.bassData.length - 1; i >= 0; i--) {
-      var random = Math.floor(Math.random() * Color.colors.length);
-      this.circles[i] = this.svg.append('circle')
-                          .attr('cx', this.width / 2)
-                          .attr('cy', this.height / 2)
-                          .attr('r', this.bassData[i])
-                          .style('fill', Color.colors[random]);
-    }
-  },
-  // This Allows For Getting Data at 200 Different Frequencies
-  frequencyData: new Uint8Array(200),
-  container: '#container',
-  height: undefined,
-  width: undefined,
-  svg: undefined,
-  circles: undefined,
-  updateColor: function() {
-    if (this.circles) {
-      // Loop Through Circles And Change Color To New Palette
-      for (var i = 0; i < this.circles.length; i++) {
-        var random = Math.floor(Math.random() * Color.colors.length);
-        this.circles[i].style("fill", Color.colors[random]);
-      }
-    }
-  },
-  update: function() {
-    // Get New Data From The Analyzer
-    Audio.analyzer.getByteFrequencyData(this.frequencyData);
-    this.bassData = this.frequencyData.slice(0, DATA_LEN);
-
-    // Start Change Color Rules
-    // Essentially This Changes The Palette At A Peak In Intensity
-    if (this.bassData[CHANGE_LOC] > CUTOFF && Color.shouldChange) {
-      Color.change();
-      this.updateColor();
-      Color.shouldChange = false;
-    }
-    if (this.bassData[5] < CUTOFF) Color.shouldChange = true;
-    // End Change Color Rules
-
-  },
-  draw: function() {
-    this.update(); // Update Analyzer Data Before Re-Drawing
-    for (var i = 0; i < this.circles.length; i++) {
-      this.circles[i].attr('r', (i / 10) * this.bassData[i]);
-    }
-  }
-}
-
-
-// Keep Track of Frames and Draw Visualizer
-var now;
-var then = Date.now();
-var interval = 1000 / FPS;
-var delta;
-
-// Loops at Designated FPS
+Vis.container = '#container';
+Vis.height = $(Vis.container).height();
+Vis.width = $(Vis.container).width();
+let now;
+let then = Date.now();
+let interval = 1000 / FPS;
+let delta;
 function loop() {
-  requestAnimationFrame(loop);
-  now = Date.now();
-  delta = now - then;
-  if (delta > interval) {
-    then = now - (delta % interval);
-    // Here's Where Stuff Happens
-    Vis.draw();
-  }
+    requestAnimationFrame(loop);
+    now = Date.now();
+    delta = now - then;
+    if (delta > interval) {
+        then = now - (delta % interval);
+        controller.update();
+    }
 }
+//# sourceMappingURL=main.js.map

@@ -1,0 +1,8 @@
+{
+  "dependencies": {},
+  "globalDependencies": {
+    "d3": "registry:dt/d3#0.0.0+20160628065019",
+    "jquery": "registry:dt/jquery#1.10.0+20160704162008",
+    "webrtc/mediastream": "registry:dt/webrtc/mediastream#0.0.0+20160317120654"
+  }
+}

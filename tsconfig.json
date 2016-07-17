@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "outDir": "scripts/",
+    "moduleResolution": "node",
+    "declaration": true,
+    "noImplicitAny": true,
+    "removeComments": true,
+    "sourceMap": true,
+    "inlineSources": true
+  },
+  "files": [
+    "scripts/main.ts",
+    "typings/index.d.ts"
+  ]
+}
