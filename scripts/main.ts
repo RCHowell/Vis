@@ -81,6 +81,16 @@ class MainController {
 
     update(): void {
         this.vis.update(this.audio);
+
+        // Start Change Color Rules
+        // Essentially This Changes The Palette At A Peak In Intensity
+        if (this.vis.frequencyData[CHANGE_LOC] > CUTOFF && this.color.shouldChange) {
+            this.color.change();
+            this.vis.updateColor(this.color.colors);
+            this.color.shouldChange = false;
+        }
+        if (this.vis.frequencyData[5] < CUTOFF) this.color.shouldChange = true;
+        // End Change Color Rules
     }
 
     loop(): void {
@@ -89,7 +99,7 @@ class MainController {
         this.delta = this.now - this.then;
         if (this.delta > MainController.interval) {
             this.then = this.now - (this.delta % MainController.interval);
-            this.vis.update(this.audio);
+            this.update();
         }
     }
 }
@@ -113,8 +123,7 @@ class ColorController {
     public shouldChange: boolean;
     
     constructor() {
-        // let random = Math.floor(Math.random() * ColorController.palettes.length);
-        // this.colors = ColorController.palettes[random];
+        this.shouldChange = false;
         this.background = $('body');
         this.change();
     }
@@ -135,7 +144,7 @@ class ColorController {
 // Visualizer class
 class Vis {
 
-    private frequencyData: Uint8Array;
+    public frequencyData: Uint8Array;
     private static container = '#container';
     private static height = $(Vis.container).height();
     private static width = $(Vis.container).width();

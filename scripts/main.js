@@ -42,6 +42,13 @@ class MainController {
     }
     update() {
         this.vis.update(this.audio);
+        if (this.vis.frequencyData[CHANGE_LOC] > CUTOFF && this.color.shouldChange) {
+            this.color.change();
+            this.vis.updateColor(this.color.colors);
+            this.color.shouldChange = false;
+        }
+        if (this.vis.frequencyData[5] < CUTOFF)
+            this.color.shouldChange = true;
     }
     loop() {
         requestAnimationFrame(this.loop);
@@ -49,13 +56,14 @@ class MainController {
         this.delta = this.now - this.then;
         if (this.delta > MainController.interval) {
             this.then = this.now - (this.delta % MainController.interval);
-            this.vis.update(this.audio);
+            this.update();
         }
     }
 }
 MainController.interval = 1000 / FPS;
 class ColorController {
     constructor() {
+        this.shouldChange = false;
         this.background = $('body');
         this.change();
     }

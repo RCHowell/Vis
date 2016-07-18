@@ -35,7 +35,7 @@ declare class ColorController {
     randomColor(): string;
 }
 declare class Vis {
-    private frequencyData;
+    frequencyData: Uint8Array;
     private static container;
     private static height;
     private static width;
