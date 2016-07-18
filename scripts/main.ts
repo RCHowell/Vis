@@ -186,9 +186,9 @@ class Vis {
 
     draw(): void {
         for (let i = 0; i < this.circles.length; i++) {
-            // ((i / 10) + 1) is used to make the circles larger
             // I tried some combinations and found this to fill the screen nicely
-            this.circles[i].attr('r', ((i / 10) + 1) * this.frequencyData[i]);
+            // (i * i) / 64 spreads the circles out
+            this.circles[i].attr('r', ((i * i)/64) * this.frequencyData[i]);
         }
     }
 }

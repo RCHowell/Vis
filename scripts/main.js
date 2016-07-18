@@ -119,7 +119,7 @@ var Vis = (function () {
     };
     Vis.prototype.draw = function () {
         for (var i = 0; i < this.circles.length; i++) {
-            this.circles[i].attr('r', ((i / 10) + 1) * this.frequencyData[i]);
+            this.circles[i].attr('r', ((i * i) / 64) * this.frequencyData[i]);
         }
     };
     Vis.container = '#container';
